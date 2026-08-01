@@ -23,7 +23,7 @@ src/
   Zoe.UI/               WPF dashboard (Windows only — build on Windows)
   Zoe.Host/             Console harness for dev testing
 tests/
-  Zoe.Tests/            Unit and integration tests (11 tests)
+  Zoe.Tests/            Unit and integration tests (15 tests)
 ```
 
 ## Prerequisites
@@ -65,8 +65,9 @@ The WPF app provides a timeline view, goal management, settings (including life 
 | 4. Context | Done | ContextService, TimelineService, StatisticsService |
 | 5. Rules + Decisions | Done | RuleEngine, DecisionEngine with evidence |
 | 6. AI Coaching | Done | CoachService, PromptBuilder, offline LLM fallback |
-| 7. Memory | Done | MemoryService with pattern extraction |
+| 7. Memory | Done | MemoryService with pattern extraction (SQLite-backed) |
 | 8. MVP Polish | Done | Weekly summaries, data export, notifications stub |
+| 9. Personal state | Done | Goals, settings, and memories persisted in SQLite |
 
 ## Event Schema
 
@@ -74,7 +75,7 @@ Every activity event follows a unified schema: `EventId`, `Timestamp`, `Source`,
 
 ## Privacy
 
-All data is stored locally in SQLite. Export and delete capabilities included. No cloud sync.
+All data is stored locally in SQLite — activity events, goals, settings, and memories. Export and delete capabilities included. No cloud sync.
 
 ## Next Steps
 
@@ -82,6 +83,7 @@ All data is stored locally in SQLite. Export and delete capabilities included. N
 - Test WindowMonitor and IdleMonitor on your Windows machine
 - Add system tray icon and auto-start registry entry
 - Wire Windows toast notifications
+- Close the coaching delivery loop (background evaluation + toast delivery)
 
 ## License
 

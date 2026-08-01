@@ -18,7 +18,7 @@ public class EventStoreTests : IAsyncLifetime
     {
         var services = new ServiceCollection();
         services.AddLogging();
-        services.AddDbContext<ZoeDbContext>(options => options.UseSqlite($"Data Source={_databasePath}"));
+        services.AddDbContextFactory<ZoeDbContext>(options => options.UseSqlite($"Data Source={_databasePath}"));
         services.AddScoped<IEventStore, EventStoreRepository>();
 
         _serviceProvider = services.BuildServiceProvider();

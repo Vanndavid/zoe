@@ -20,22 +20,25 @@ public static class ServiceCollectionExtensions
         var connectionString = configuration.GetConnectionString("ZoeDatabase")
             ?? "Data Source=zoe.db";
 
-        services.AddDbContext<ZoeDbContext>(options =>
+        // Registers IDbContextFactory<ZoeDbContext> (singleton) and ZoeDbContext (scoped).
+        services.AddDbContextFactory<ZoeDbContext>(options =>
             options.UseSqlite(connectionString));
 
         services.AddSingleton<IEventBus, InMemoryEventBus>();
         services.AddScoped<IEventStore, EventStoreRepository>();
         services.AddScoped<IEventHandler, EventStoreHandler>();
 
-        services.AddSingleton<IGoalRepository, InMemoryGoalRepository>();
-        services.AddSingleton<ISettingsRepository, InMemorySettingsRepository>();
+        // Factory-backed so WPF singleton view-models can safely resolve these.
+        services.AddSingleton<IGoalRepository, SqliteGoalRepository>();
+        services.AddSingleton<ISettingsRepository, SqliteSettingsRepository>();
+        services.AddSingleton<IMemoryRepository, SqliteMemoryRepository>();
 
         services.AddScoped<IContextService, ContextService>();
         services.AddScoped<ITimelineService, TimelineService>();
         services.AddScoped<IStatisticsService, StatisticsService>();
         services.AddScoped<IRuleEngine, RuleEngine>();
         services.AddScoped<IDecisionEngine, DecisionEngine>();
-        services.AddSingleton<IMemoryService, MemoryService>();
+        services.AddScoped<IMemoryService, MemoryService>();
         services.AddScoped<IDataExportService, DataExportService>();
 
         return services;
@@ -59,6 +62,69 @@ public static class ServiceCollectionExtensions
     {
         using var scope = serviceProvider.CreateScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<ZoeDbContext>();
-        await dbContext.Database.EnsureCreatedAsync();
+        var created = await dbContext.Database.EnsureCreatedAsync();
+        if (!created)
+        {
+            // EnsureCreated does not evolve existing databases — add personal-state tables if missing.
+            await EnsurePersonalStateTablesAsync(dbContext);
+        }
+    }
+
+    private static async Task EnsurePersonalStateTablesAsync(ZoeDbContext dbContext)
+    {
+        await dbContext.Database.ExecuteSqlRawAsync(
+            """
+            CREATE TABLE IF NOT EXISTS "Goals" (
+                "Id" TEXT NOT NULL CONSTRAINT "PK_Goals" PRIMARY KEY,
+                "Name" TEXT NOT NULL,
+                "Description" TEXT NOT NULL,
+                "Priority" INTEGER NOT NULL,
+                "IsActive" INTEGER NOT NULL,
+                "CreatedAt" INTEGER NOT NULL,
+                "CompletedAt" INTEGER NULL
+            );
+            """);
+
+        await dbContext.Database.ExecuteSqlRawAsync(
+            """
+            CREATE INDEX IF NOT EXISTS "IX_Goals_IsActive" ON "Goals" ("IsActive");
+            """);
+
+        await dbContext.Database.ExecuteSqlRawAsync(
+            """
+            CREATE TABLE IF NOT EXISTS "UserSettings" (
+                "Id" TEXT NOT NULL CONSTRAINT "PK_UserSettings" PRIMARY KEY,
+                "MonitoringEnabled" INTEGER NOT NULL,
+                "AutoStartWithWindows" INTEGER NOT NULL,
+                "WorkDayStart" INTEGER NOT NULL,
+                "WorkDayEnd" INTEGER NOT NULL,
+                "LifeProfile" TEXT NOT NULL,
+                "InterventionCooldownMinutes" INTEGER NOT NULL,
+                "UpdatedAt" INTEGER NOT NULL
+            );
+            """);
+
+        await dbContext.Database.ExecuteSqlRawAsync(
+            """
+            CREATE TABLE IF NOT EXISTS "Memories" (
+                "Id" TEXT NOT NULL CONSTRAINT "PK_Memories" PRIMARY KEY,
+                "Category" TEXT NOT NULL,
+                "Summary" TEXT NOT NULL,
+                "RelevanceScore" REAL NOT NULL,
+                "CreatedAt" INTEGER NOT NULL,
+                "LastReferencedAt" INTEGER NULL,
+                "ReferenceCount" INTEGER NOT NULL
+            );
+            """);
+
+        await dbContext.Database.ExecuteSqlRawAsync(
+            """
+            CREATE INDEX IF NOT EXISTS "IX_Memories_Category" ON "Memories" ("Category");
+            """);
+
+        await dbContext.Database.ExecuteSqlRawAsync(
+            """
+            CREATE INDEX IF NOT EXISTS "IX_Memories_RelevanceScore" ON "Memories" ("RelevanceScore");
+            """);
     }
 }

@@ -22,30 +22,6 @@ using var host = builder.Build();
 await host.Services.EnsureZoeDatabaseCreatedAsync();
 
 var eventBus = host.Services.GetRequiredService<IEventBus>();
-var eventStore = host.Services.GetRequiredService<IEventStore>();
-var contextService = host.Services.GetRequiredService<IContextService>();
-var statisticsService = host.Services.GetRequiredService<IStatisticsService>();
-var memoryService = host.Services.GetRequiredService<IMemoryService>();
-var coachService = host.Services.GetRequiredService<ICoachService>();
-var settingsRepository = host.Services.GetRequiredService<ISettingsRepository>();
-var goalRepository = host.Services.GetRequiredService<IGoalRepository>();
-var dataExport = host.Services.GetRequiredService<IDataExportService>();
-
-await settingsRepository.SaveAsync(new UserSettings
-{
-    LifeProfile =
-        "I am a software engineer seeking promotion. I work 8h on software, " +
-        "30-60min learning, 30-60min interview prep, 30min PTE practice, " +
-        "and enjoy gaming/movies. I want 5-10min exercise daily."
-});
-
-await goalRepository.AddAsync(new Goal
-{
-    Name = "Finish Login System",
-    Description = "Complete authentication service for promotion project",
-    Priority = 1
-});
-
 var sessionId = Guid.NewGuid();
 var baseTime = DateTimeOffset.UtcNow;
 
@@ -53,82 +29,128 @@ Console.WriteLine("Zoe Foundation Harness");
 Console.WriteLine("======================");
 Console.WriteLine();
 
-var sampleEvents = new[]
+using (var scope = host.Services.CreateScope())
 {
-    ActivityEvent.Create(EventType.WindowChanged, "WindowMonitor",
-        EventPayload.FromDictionary(new Dictionary<string, string>
+    var settingsRepository = scope.ServiceProvider.GetRequiredService<ISettingsRepository>();
+    var goalRepository = scope.ServiceProvider.GetRequiredService<IGoalRepository>();
+    var eventStore = scope.ServiceProvider.GetRequiredService<IEventStore>();
+    var contextService = scope.ServiceProvider.GetRequiredService<IContextService>();
+    var statisticsService = scope.ServiceProvider.GetRequiredService<IStatisticsService>();
+    var memoryService = scope.ServiceProvider.GetRequiredService<IMemoryService>();
+    var coachService = scope.ServiceProvider.GetRequiredService<ICoachService>();
+    var dataExport = scope.ServiceProvider.GetRequiredService<IDataExportService>();
+
+    await settingsRepository.SaveAsync(new UserSettings
+    {
+        LifeProfile =
+            "I am a software engineer seeking promotion. I work 8h on software, " +
+            "30-60min learning, 30-60min interview prep, 30min PTE practice, " +
+            "and enjoy gaming/movies. I want 5-10min exercise daily."
+    });
+
+    var existingGoals = await goalRepository.GetAllAsync();
+    if (existingGoals.Count == 0)
+    {
+        await goalRepository.AddAsync(new Goal
         {
-            ["application"] = "devenv",
-            ["windowTitle"] = "AuthenticationService.cs"
-        }), sessionId: sessionId, timestamp: baseTime),
-    ActivityEvent.Create(EventType.WindowChanged, "WindowMonitor",
-        EventPayload.FromDictionary(new Dictionary<string, string>
-        {
-            ["application"] = "chrome",
-            ["windowTitle"] = "Reddit - procrastination"
-        }), sessionId: sessionId, timestamp: baseTime.AddMinutes(12)),
-    ActivityEvent.Create(EventType.IdleStarted, "IdleMonitor",
-        sessionId: sessionId, timestamp: baseTime.AddMinutes(20)),
-    ActivityEvent.Create(EventType.IdleEnded, "IdleMonitor",
-        sessionId: sessionId, timestamp: baseTime.AddMinutes(25)),
-    ActivityEvent.Create(EventType.WindowChanged, "WindowMonitor",
-        EventPayload.FromDictionary(new Dictionary<string, string>
-        {
-            ["application"] = "devenv",
-            ["windowTitle"] = "AuthenticationService.cs"
-        }), sessionId: sessionId, timestamp: baseTime.AddMinutes(26))
-};
+            Name = "Finish Login System",
+            Description = "Complete authentication service for promotion project",
+            Priority = 1
+        });
+    }
 
-foreach (var activityEvent in sampleEvents)
-{
-    await eventBus.PublishAsync(activityEvent);
+    var sampleEvents = new[]
+    {
+        ActivityEvent.Create(EventType.WindowChanged, "WindowMonitor",
+            EventPayload.FromDictionary(new Dictionary<string, string>
+            {
+                ["application"] = "devenv",
+                ["windowTitle"] = "AuthenticationService.cs"
+            }), sessionId: sessionId, timestamp: baseTime),
+        ActivityEvent.Create(EventType.WindowChanged, "WindowMonitor",
+            EventPayload.FromDictionary(new Dictionary<string, string>
+            {
+                ["application"] = "chrome",
+                ["windowTitle"] = "Reddit - procrastination"
+            }), sessionId: sessionId, timestamp: baseTime.AddMinutes(12)),
+        ActivityEvent.Create(EventType.IdleStarted, "IdleMonitor",
+            sessionId: sessionId, timestamp: baseTime.AddMinutes(20)),
+        ActivityEvent.Create(EventType.IdleEnded, "IdleMonitor",
+            sessionId: sessionId, timestamp: baseTime.AddMinutes(25)),
+        ActivityEvent.Create(EventType.WindowChanged, "WindowMonitor",
+            EventPayload.FromDictionary(new Dictionary<string, string>
+            {
+                ["application"] = "devenv",
+                ["windowTitle"] = "AuthenticationService.cs"
+            }), sessionId: sessionId, timestamp: baseTime.AddMinutes(26))
+    };
+
+    foreach (var activityEvent in sampleEvents)
+    {
+        await eventBus.PublishAsync(activityEvent);
+    }
+
+    var timeline = await eventStore.GetByTimeRangeAsync(
+        baseTime.AddMinutes(-1), baseTime.AddMinutes(30));
+
+    Console.WriteLine($"Timeline ({timeline.Count} events):");
+    foreach (var activityEvent in timeline)
+    {
+        var app = activityEvent.Payload.Get("application") ?? "-";
+        var title = activityEvent.Payload.Get("windowTitle") ?? "-";
+        Console.WriteLine(
+            $"  {activityEvent.Timestamp:HH:mm:ss}  {activityEvent.Type,-15}  {app,-18}  {title}");
+    }
+
+    Console.WriteLine();
+    var context = await contextService.GetCurrentContextAsync();
+    Console.WriteLine("Current Context:");
+    Console.WriteLine($"  Activity: {context.CurrentActivity}");
+    Console.WriteLine($"  Focus: {context.FocusLevel}");
+    Console.WriteLine($"  Goal Alignment: {context.GoalAlignmentPercent:F0}%");
+    Console.WriteLine($"  Risk: {context.RiskLevel}");
+    Console.WriteLine($"  State: {context.EstimatedState}");
+
+    Console.WriteLine();
+    await memoryService.ExtractMemoriesFromHistoryAsync();
+    var memories = await memoryService.GetRelevantMemoriesAsync(5);
+    Console.WriteLine($"Memories ({memories.Count}):");
+    foreach (var memory in memories)
+    {
+        Console.WriteLine($"  [{memory.Category}] {memory.Summary}");
+    }
+
+    Console.WriteLine();
+    var intervention = await coachService.EvaluateInterventionAsync();
+    if (intervention is not null)
+    {
+        Console.WriteLine($"Intervention ({intervention.Action}):");
+        Console.WriteLine($"  {intervention.Message}");
+    }
+
+    Console.WriteLine();
+    var dailySummary = await statisticsService.GetDailySummaryAsync(DateOnly.FromDateTime(baseTime.DateTime));
+    Console.WriteLine($"Daily Summary: {dailySummary.NarrativeSummary}");
+
+    Console.WriteLine();
+    var exportPath = Path.Combine(Path.GetTempPath(), "zoe-export.json");
+    await dataExport.ExportEventsAsync(exportPath);
+    Console.WriteLine($"Data exported to: {exportPath}");
 }
 
-var timeline = await eventStore.GetByTimeRangeAsync(
-    baseTime.AddMinutes(-1), baseTime.AddMinutes(30));
-
-Console.WriteLine($"Timeline ({timeline.Count} events):");
-foreach (var activityEvent in timeline)
+// Reload personal state from a fresh scope to prove SQLite durability.
+using (var reloadScope = host.Services.CreateScope())
 {
-    var app = activityEvent.Payload.Get("application") ?? "-";
-    var title = activityEvent.Payload.Get("windowTitle") ?? "-";
-    Console.WriteLine(
-        $"  {activityEvent.Timestamp:HH:mm:ss}  {activityEvent.Type,-15}  {app,-18}  {title}");
+    var settings = await reloadScope.ServiceProvider.GetRequiredService<ISettingsRepository>().GetAsync();
+    var goals = await reloadScope.ServiceProvider.GetRequiredService<IGoalRepository>().GetAllAsync();
+    var memories = await reloadScope.ServiceProvider.GetRequiredService<IMemoryService>().GetRelevantMemoriesAsync(5);
+
+    Console.WriteLine();
+    Console.WriteLine("Persisted personal state (reloaded):");
+    Console.WriteLine($"  Settings profile length: {settings?.LifeProfile.Length ?? 0}");
+    Console.WriteLine($"  Goals: {goals.Count} ({string.Join(", ", goals.Select(g => g.Name))})");
+    Console.WriteLine($"  Memories: {memories.Count}");
 }
 
 Console.WriteLine();
-var context = await contextService.GetCurrentContextAsync();
-Console.WriteLine("Current Context:");
-Console.WriteLine($"  Activity: {context.CurrentActivity}");
-Console.WriteLine($"  Focus: {context.FocusLevel}");
-Console.WriteLine($"  Goal Alignment: {context.GoalAlignmentPercent:F0}%");
-Console.WriteLine($"  Risk: {context.RiskLevel}");
-Console.WriteLine($"  State: {context.EstimatedState}");
-
-Console.WriteLine();
-await memoryService.ExtractMemoriesFromHistoryAsync();
-var memories = await memoryService.GetRelevantMemoriesAsync(5);
-Console.WriteLine($"Memories ({memories.Count}):");
-foreach (var memory in memories)
-{
-    Console.WriteLine($"  [{memory.Category}] {memory.Summary}");
-}
-
-Console.WriteLine();
-var intervention = await coachService.EvaluateInterventionAsync();
-if (intervention is not null)
-{
-    Console.WriteLine($"Intervention ({intervention.Action}):");
-    Console.WriteLine($"  {intervention.Message}");
-}
-
-Console.WriteLine();
-var dailySummary = await statisticsService.GetDailySummaryAsync(DateOnly.FromDateTime(baseTime.DateTime));
-Console.WriteLine($"Daily Summary: {dailySummary.NarrativeSummary}");
-
-Console.WriteLine();
-var exportPath = Path.Combine(Path.GetTempPath(), "zoe-export.json");
-await dataExport.ExportEventsAsync(exportPath);
-Console.WriteLine($"Data exported to: {exportPath}");
-Console.WriteLine();
-Console.WriteLine("All phases verified: events -> context -> rules -> AI -> summaries -> export.");
+Console.WriteLine("All phases verified: events -> context -> rules -> AI -> summaries -> export -> persistence.");

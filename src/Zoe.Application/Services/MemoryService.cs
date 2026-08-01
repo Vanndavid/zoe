@@ -7,30 +7,23 @@ namespace Zoe.Application.Services;
 public sealed class MemoryService : IMemoryService
 {
     private readonly IEventStore _eventStore;
-    private readonly List<Memory> _memories = [];
+    private readonly IMemoryRepository _memoryRepository;
 
     private static readonly HashSet<string> DistractionApps = new(StringComparer.OrdinalIgnoreCase)
     {
         "chrome", "msedge", "firefox", "Discord", "Steam"
     };
 
-    public MemoryService(IEventStore eventStore)
+    public MemoryService(IEventStore eventStore, IMemoryRepository memoryRepository)
     {
         _eventStore = eventStore;
+        _memoryRepository = memoryRepository;
     }
 
     public Task<IReadOnlyList<Memory>> GetRelevantMemoriesAsync(
         int limit = 10,
-        CancellationToken cancellationToken = default)
-    {
-        var ranked = _memories
-            .OrderByDescending(m => m.RelevanceScore)
-            .ThenByDescending(m => m.LastReferencedAt ?? m.CreatedAt)
-            .Take(limit)
-            .ToList();
-
-        return Task.FromResult<IReadOnlyList<Memory>>(ranked);
-    }
+        CancellationToken cancellationToken = default) =>
+        _memoryRepository.GetRelevantAsync(limit, cancellationToken);
 
     public async Task ExtractMemoriesFromHistoryAsync(CancellationToken cancellationToken = default)
     {
@@ -40,12 +33,14 @@ public sealed class MemoryService : IMemoryService
             now,
             cancellationToken);
 
-        ExtractProductiveHours(events);
-        ExtractDistractionPatterns(events);
-        ExtractRecurringExcuses(events);
+        await ExtractProductiveHoursAsync(events, cancellationToken);
+        await ExtractDistractionPatternsAsync(events, cancellationToken);
+        await ExtractRecurringExcusesAsync(events, cancellationToken);
     }
 
-    private void ExtractProductiveHours(IReadOnlyList<ActivityEvent> events)
+    private async Task ExtractProductiveHoursAsync(
+        IReadOnlyList<ActivityEvent> events,
+        CancellationToken cancellationToken)
     {
         var hourCounts = events
             .Where(e => e.Type == EventType.WindowChanged)
@@ -60,16 +55,20 @@ public sealed class MemoryService : IMemoryService
             return;
         }
 
-        _memories.RemoveAll(m => m.Category == "ProductiveHours");
-        _memories.Add(new Memory
-        {
-            Category = "ProductiveHours",
-            Summary = $"Most active hours: {string.Join(", ", hourCounts.Select(h => $"{h:D2}:00"))}",
-            RelevanceScore = 0.8
-        });
+        await _memoryRepository.ReplaceByCategoryAsync(
+            "ProductiveHours",
+            new Memory
+            {
+                Category = "ProductiveHours",
+                Summary = $"Most active hours: {string.Join(", ", hourCounts.Select(h => $"{h:D2}:00"))}",
+                RelevanceScore = 0.8
+            },
+            cancellationToken);
     }
 
-    private void ExtractDistractionPatterns(IReadOnlyList<ActivityEvent> events)
+    private async Task ExtractDistractionPatternsAsync(
+        IReadOnlyList<ActivityEvent> events,
+        CancellationToken cancellationToken)
     {
         var distractions = events
             .Where(e => e.Type == EventType.WindowChanged)
@@ -84,35 +83,40 @@ public sealed class MemoryService : IMemoryService
             return;
         }
 
-        _memories.RemoveAll(m => m.Category == "DistractionPattern");
-        _memories.Add(new Memory
-        {
-            Category = "DistractionPattern",
-            Summary = $"Frequent distraction: {distractions.Key} ({distractions.Count()} times this week)",
-            RelevanceScore = 0.9
-        });
+        await _memoryRepository.ReplaceByCategoryAsync(
+            "DistractionPattern",
+            new Memory
+            {
+                Category = "DistractionPattern",
+                Summary = $"Frequent distraction: {distractions.Key} ({distractions.Count()} times this week)",
+                RelevanceScore = 0.9
+            },
+            cancellationToken);
     }
 
-    private void ExtractRecurringExcuses(IReadOnlyList<ActivityEvent> events)
+    private async Task ExtractRecurringExcusesAsync(
+        IReadOnlyList<ActivityEvent> events,
+        CancellationToken cancellationToken)
     {
         var titles = events
             .Where(e => e.Type == EventType.WindowChanged)
             .Select(e => e.Payload.Get("windowTitle") ?? string.Empty)
-            .Where(t => t.Contains("reddit", StringComparison.OrdinalIgnoreCase) ||
-                        t.Contains("youtube", StringComparison.OrdinalIgnoreCase))
-            .Count();
+            .Count(t => t.Contains("reddit", StringComparison.OrdinalIgnoreCase) ||
+                        t.Contains("youtube", StringComparison.OrdinalIgnoreCase));
 
         if (titles < 3)
         {
             return;
         }
 
-        _memories.RemoveAll(m => m.Category == "RecurringExcuse");
-        _memories.Add(new Memory
-        {
-            Category = "RecurringExcuse",
-            Summary = "Social media and entertainment browsing recurs during work hours",
-            RelevanceScore = 0.85
-        });
+        await _memoryRepository.ReplaceByCategoryAsync(
+            "RecurringExcuse",
+            new Memory
+            {
+                Category = "RecurringExcuse",
+                Summary = "Social media and entertainment browsing recurs during work hours",
+                RelevanceScore = 0.85
+            },
+            cancellationToken);
     }
 }

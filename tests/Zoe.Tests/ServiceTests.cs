@@ -19,9 +19,9 @@ public class ContextServiceTests : IAsyncLifetime
     {
         var services = new ServiceCollection();
         services.AddLogging();
-        services.AddDbContext<ZoeDbContext>(options => options.UseSqlite($"Data Source={_databasePath}"));
+        services.AddDbContextFactory<ZoeDbContext>(options => options.UseSqlite($"Data Source={_databasePath}"));
         services.AddScoped<IEventStore, EventStoreRepository>();
-        services.AddSingleton<IGoalRepository, InMemoryGoalRepository>();
+        services.AddSingleton<IGoalRepository, SqliteGoalRepository>();
         services.AddScoped<IContextService, ContextService>();
 
         _serviceProvider = services.BuildServiceProvider();
@@ -110,9 +110,10 @@ public class MemoryServiceTests : IAsyncLifetime
     public async Task InitializeAsync()
     {
         var services = new ServiceCollection();
-        services.AddDbContext<ZoeDbContext>(options => options.UseSqlite($"Data Source={_databasePath}"));
+        services.AddDbContextFactory<ZoeDbContext>(options => options.UseSqlite($"Data Source={_databasePath}"));
         services.AddScoped<IEventStore, EventStoreRepository>();
-        services.AddSingleton<IMemoryService, MemoryService>();
+        services.AddSingleton<IMemoryRepository, SqliteMemoryRepository>();
+        services.AddScoped<IMemoryService, MemoryService>();
 
         _serviceProvider = services.BuildServiceProvider();
         await _serviceProvider.EnsureZoeDatabaseCreatedAsync();

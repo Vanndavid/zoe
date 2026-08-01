@@ -19,7 +19,7 @@ public class EventBusTests : IAsyncLifetime
     {
         var services = new ServiceCollection();
         services.AddLogging();
-        services.AddDbContext<ZoeDbContext>(options => options.UseSqlite($"Data Source={_databasePath}"));
+        services.AddDbContextFactory<ZoeDbContext>(options => options.UseSqlite($"Data Source={_databasePath}"));
         services.AddSingleton<IEventBus, InMemoryEventBus>();
         services.AddScoped<IEventStore, EventStoreRepository>();
         services.AddScoped<IEventHandler, EventStoreHandler>();

@@ -3,7 +3,9 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Zoe.AI.DependencyInjection;
+using Zoe.Application.Interfaces;
 using Zoe.Infrastructure.DependencyInjection;
+using Zoe.UI.Services;
 using Zoe.UI.ViewModels;
 using Zoe.Windows.Services;
 
@@ -27,6 +29,8 @@ public partial class App : System.Windows.Application
                 services.AddZoeInfrastructure(context.Configuration);
                 services.AddZoeAi();
                 services.AddZoeWindowsMonitoring();
+                services.AddZoeCoachingLoop(context.Configuration);
+                services.AddSingleton<INotificationService, ToastNotificationService>();
                 services.AddSingleton<MainViewModel>();
                 services.AddSingleton<TimelineViewModel>();
                 services.AddSingleton<SettingsViewModel>();
@@ -34,6 +38,7 @@ public partial class App : System.Windows.Application
             .Build();
 
         await _host.Services.EnsureZoeDatabaseCreatedAsync();
+        await _host.StartAsync();
 
         var mainViewModel = _host.Services.GetRequiredService<MainViewModel>();
         var mainWindow = new MainWindow { DataContext = mainViewModel };

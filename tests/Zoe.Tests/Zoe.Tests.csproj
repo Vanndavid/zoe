@@ -26,6 +26,7 @@
     <ProjectReference Include="..\..\src\Zoe.Infrastructure\Zoe.Infrastructure.csproj" />
     <ProjectReference Include="..\..\src\Zoe.Application\Zoe.Application.csproj" />
     <ProjectReference Include="..\..\src\Zoe.Domain\Zoe.Domain.csproj" />
+    <ProjectReference Include="..\..\src\Zoe.AI\Zoe.AI.csproj" />
   </ItemGroup>
 
 </Project>

@@ -48,6 +48,28 @@ public static class ServiceCollectionExtensions
         return services;
     }
 
+    /// <summary>
+    /// Registers the background coaching check. Requires an <see cref="IMonitoringService"/>,
+    /// which only the Windows host provides.
+    /// </summary>
+    public static IServiceCollection AddZoeCoachingLoop(
+        this IServiceCollection services,
+        IConfiguration configuration)
+    {
+        var intervalSeconds =
+            int.TryParse(configuration["Coaching:EvaluationIntervalSeconds"], out var configured) && configured > 0
+                ? configured
+                : 60;
+
+        services.AddHostedService(provider => new CoachingLoopService(
+            provider.GetRequiredService<IServiceScopeFactory>(),
+            provider.GetRequiredService<IMonitoringService>(),
+            provider.GetRequiredService<ILogger<CoachingLoopService>>(),
+            TimeSpan.FromSeconds(intervalSeconds)));
+
+        return services;
+    }
+
     public static IServiceCollection AddZoeLogging(this IServiceCollection services)
     {
         services.AddLogging(builder =>

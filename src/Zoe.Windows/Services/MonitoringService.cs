@@ -71,7 +71,6 @@ public static class WindowsServiceCollectionExtensions
         services.AddSingleton<IWindowMonitor>(provider => provider.GetRequiredService<WindowMonitor>());
         services.AddSingleton<IIdleMonitor>(provider => provider.GetRequiredService<IdleMonitor>());
         services.AddSingleton<IMonitoringService, MonitoringService>();
-        services.AddSingleton<INotificationService, WindowsNotificationService>();
         return services;
     }
 }

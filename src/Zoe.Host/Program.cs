@@ -37,7 +37,7 @@ using (var scope = host.Services.CreateScope())
     var contextService = scope.ServiceProvider.GetRequiredService<IContextService>();
     var statisticsService = scope.ServiceProvider.GetRequiredService<IStatisticsService>();
     var memoryService = scope.ServiceProvider.GetRequiredService<IMemoryService>();
-    var coachService = scope.ServiceProvider.GetRequiredService<ICoachService>();
+    var deliveryService = scope.ServiceProvider.GetRequiredService<IInterventionDeliveryService>();
     var dataExport = scope.ServiceProvider.GetRequiredService<IDataExportService>();
 
     await settingsRepository.SaveAsync(new UserSettings
@@ -121,12 +121,10 @@ using (var scope = host.Services.CreateScope())
     }
 
     Console.WriteLine();
-    var intervention = await coachService.EvaluateInterventionAsync();
-    if (intervention is not null)
-    {
-        Console.WriteLine($"Intervention ({intervention.Action}):");
-        Console.WriteLine($"  {intervention.Message}");
-    }
+    var intervention = await deliveryService.EvaluateAndDeliverAsync();
+    Console.WriteLine(intervention is null
+        ? "No intervention (on track, suppressed, or cooling down)."
+        : $"Intervention {intervention.Action} delivered: {intervention.WasDelivered}");
 
     Console.WriteLine();
     var dailySummary = await statisticsService.GetDailySummaryAsync(DateOnly.FromDateTime(baseTime.DateTime));

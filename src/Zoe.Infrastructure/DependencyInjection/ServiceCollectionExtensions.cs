@@ -40,6 +40,10 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IDecisionEngine, DecisionEngine>();
         services.AddScoped<IMemoryService, MemoryService>();
         services.AddScoped<IDataExportService, DataExportService>();
+        services.AddScoped<IInterventionDeliveryService, InterventionDeliveryService>();
+
+        // Hosts with a richer notifier (e.g. the WPF app's toasts) register their own after this.
+        services.AddSingleton<INotificationService, ConsoleNotificationService>();
 
         return services;
     }

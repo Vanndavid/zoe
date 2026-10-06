@@ -38,6 +38,15 @@ public interface ICoachService
     Task<string> GenerateWeeklyReviewAsync(DateOnly weekStart, CancellationToken cancellationToken = default);
 }
 
+public interface IInterventionDeliveryService
+{
+    /// <summary>
+    /// Asks the coach whether to intervene and, if so, shows the intervention and records
+    /// an InterventionTriggered event. Returns null when no intervention was warranted.
+    /// </summary>
+    Task<Intervention?> EvaluateAndDeliverAsync(CancellationToken cancellationToken = default);
+}
+
 public interface IRuleEngine
 {
     RuleEvaluationResult Evaluate(Context context, UserSettings settings);

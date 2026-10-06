@@ -3,8 +3,6 @@ using Zoe.AI.Interfaces;
 using Zoe.AI.Prompts;
 using Zoe.Application.Interfaces;
 using Zoe.Domain.Entities;
-using Zoe.Domain.Enums;
-using Zoe.Domain.ValueObjects;
 
 namespace Zoe.AI.Services;
 
@@ -35,7 +33,6 @@ public sealed class CoachService : ICoachService
     private readonly IMemoryService _memoryService;
     private readonly ISettingsRepository _settingsRepository;
     private readonly ILlmClient _llmClient;
-    private readonly IEventBus _eventBus;
     private readonly ILogger<CoachService> _logger;
 
     public CoachService(
@@ -46,7 +43,6 @@ public sealed class CoachService : ICoachService
         IMemoryService memoryService,
         ISettingsRepository settingsRepository,
         ILlmClient llmClient,
-        IEventBus eventBus,
         ILogger<CoachService> logger)
     {
         _contextService = contextService;
@@ -56,7 +52,6 @@ public sealed class CoachService : ICoachService
         _memoryService = memoryService;
         _settingsRepository = settingsRepository;
         _llmClient = llmClient;
-        _eventBus = eventBus;
         _logger = logger;
     }
 
@@ -78,25 +73,15 @@ public sealed class CoachService : ICoachService
             PromptBuilder.BuildInterventionPrompt(context, ruleResult, memories),
             cancellationToken);
 
+        // Delivery (and recording it) is the caller's job — see IInterventionDeliveryService.
         var intervention = new Intervention
         {
             Action = decision.Action,
             Message = aiMessage,
             Evidence = decision.Evidence,
             Confidence = decision.Confidence,
-            WasDelivered = true
+            WasDelivered = false
         };
-
-        await _eventBus.PublishAsync(
-            ActivityEvent.Create(
-                EventType.InterventionTriggered,
-                "CoachService",
-                EventPayload.FromDictionary(new Dictionary<string, string>
-                {
-                    ["action"] = intervention.Action.ToString(),
-                    ["message"] = intervention.Message
-                })),
-            cancellationToken);
 
         _logger.LogInformation("Intervention generated: {Action}", intervention.Action);
         return intervention;

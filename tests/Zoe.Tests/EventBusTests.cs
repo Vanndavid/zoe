@@ -32,10 +32,7 @@ public class EventBusTests : IAsyncLifetime
     {
         await _serviceProvider.DisposeAsync();
 
-        if (File.Exists(_databasePath))
-        {
-            File.Delete(_databasePath);
-        }
+        TestDatabase.Delete(_databasePath);
     }
 
     [Fact]

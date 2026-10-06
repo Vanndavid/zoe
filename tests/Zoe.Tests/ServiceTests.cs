@@ -34,7 +34,7 @@ public class ContextServiceTests : IAsyncLifetime
     public async Task DisposeAsync()
     {
         await _serviceProvider.DisposeAsync();
-        if (File.Exists(_databasePath)) File.Delete(_databasePath);
+        TestDatabase.Delete(_databasePath);
     }
 
     [Fact]
@@ -198,7 +198,7 @@ public class DecisionEngineTests : IAsyncLifetime
     public async Task DisposeAsync()
     {
         await _serviceProvider.DisposeAsync();
-        if (File.Exists(_databasePath)) File.Delete(_databasePath);
+        TestDatabase.Delete(_databasePath);
     }
 
     [Theory]
@@ -273,7 +273,7 @@ public class MemoryServiceTests : IAsyncLifetime
     public async Task DisposeAsync()
     {
         await _serviceProvider.DisposeAsync();
-        if (File.Exists(_databasePath)) File.Delete(_databasePath);
+        TestDatabase.Delete(_databasePath);
     }
 
     [Fact]

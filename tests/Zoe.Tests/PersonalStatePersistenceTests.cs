@@ -24,10 +24,7 @@ public class PersonalStatePersistenceTests : IAsyncLifetime
     public async Task DisposeAsync()
     {
         await _serviceProvider.DisposeAsync();
-        if (File.Exists(_databasePath))
-        {
-            File.Delete(_databasePath);
-        }
+        TestDatabase.Delete(_databasePath);
     }
 
     [Fact]
@@ -173,10 +170,7 @@ public class PersonalStatePersistenceTests : IAsyncLifetime
         }
         finally
         {
-            if (File.Exists(upgradePath))
-            {
-                File.Delete(upgradePath);
-            }
+            TestDatabase.Delete(upgradePath);
         }
     }
 

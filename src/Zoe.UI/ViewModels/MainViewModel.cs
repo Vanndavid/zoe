@@ -108,7 +108,15 @@ public partial class MainViewModel : ObservableObject
             Goals.Add(goal);
         }
 
-        await RefreshTimelineAsync();
+        // "Enable monitoring" means Zoe watches from launch, not only after a click.
+        if (MonitoringEnabled && !_monitoringService.IsRunning)
+        {
+            await ToggleMonitoringAsync();
+        }
+        else
+        {
+            await RefreshTimelineAsync();
+        }
     }
 
     private async Task RefreshTimelineAsync()

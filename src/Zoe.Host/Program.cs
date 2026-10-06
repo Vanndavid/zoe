@@ -23,7 +23,8 @@ await host.Services.EnsureZoeDatabaseCreatedAsync();
 
 var eventBus = host.Services.GetRequiredService<IEventBus>();
 var sessionId = Guid.NewGuid();
-var baseTime = DateTimeOffset.UtcNow;
+// Sample activity spans the last half hour so the context engine sees all of it.
+var baseTime = DateTimeOffset.UtcNow.AddMinutes(-30);
 
 Console.WriteLine("Zoe Foundation Harness");
 Console.WriteLine("======================");
@@ -45,7 +46,10 @@ using (var scope = host.Services.CreateScope())
         LifeProfile =
             "I am a software engineer seeking promotion. I work 8h on software, " +
             "30-60min learning, 30-60min interview prep, 30min PTE practice, " +
-            "and enjoy gaming/movies. I want 5-10min exercise daily."
+            "and enjoy gaming/movies. I want 5-10min exercise daily.",
+        // All-day work hours so the harness can demo an intervention at any time of day.
+        WorkDayStart = TimeOnly.MinValue,
+        WorkDayEnd = TimeOnly.MaxValue
     });
 
     var existingGoals = await goalRepository.GetAllAsync();
@@ -82,7 +86,13 @@ using (var scope = host.Services.CreateScope())
             {
                 ["application"] = "devenv",
                 ["windowTitle"] = "AuthenticationService.cs"
-            }), sessionId: sessionId, timestamp: baseTime.AddMinutes(26))
+            }), sessionId: sessionId, timestamp: baseTime.AddMinutes(26)),
+        ActivityEvent.Create(EventType.WindowChanged, "WindowMonitor",
+            EventPayload.FromDictionary(new Dictionary<string, string>
+            {
+                ["application"] = "chrome",
+                ["windowTitle"] = "YouTube - just one more video"
+            }), sessionId: sessionId, timestamp: baseTime.AddMinutes(28))
     };
 
     foreach (var activityEvent in sampleEvents)
@@ -151,4 +161,4 @@ using (var reloadScope = host.Services.CreateScope())
 }
 
 Console.WriteLine();
-Console.WriteLine("All phases verified: events -> context -> rules -> AI -> summaries -> export -> persistence.");
+Console.WriteLine("All phases verified: events -> context -> rules -> AI -> delivery -> summaries -> export -> persistence.");

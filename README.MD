@@ -23,13 +23,13 @@ src/
   Zoe.UI/               WPF dashboard (Windows only — build on Windows)
   Zoe.Host/             Console harness for dev testing
 tests/
-  Zoe.Tests/            Unit and integration tests (15 tests)
+  Zoe.Tests/            Unit and integration tests (30 tests)
 ```
 
 ## Prerequisites
 
 - [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0)
-- Windows 10/11 for WPF UI and live activity monitoring
+- Windows 10 (1809+) or 11 for the WPF UI, toast notifications, and live activity monitoring
 
 ## Build and Test (Linux or Windows)
 
@@ -55,6 +55,8 @@ dotnet run --project src/Zoe.UI/Zoe.UI.csproj
 
 The WPF app provides a timeline view, goal management, settings (including life profile), and monitoring controls.
 
+While monitoring is running, Zoe checks every minute whether to intervene and shows a Windows toast when it does. It stays quiet while you are idle, outside work hours (default 09:00–17:00), during deep work, and for 15 minutes after each intervention (max 3 per hour). The check interval is `Coaching:EvaluationIntervalSeconds` in `src/Zoe.UI/appsettings.json`.
+
 ## Implemented Phases
 
 | Phase | Status | Components |
@@ -68,6 +70,7 @@ The WPF app provides a timeline view, goal management, settings (including life 
 | 7. Memory | Done | MemoryService with pattern extraction (SQLite-backed) |
 | 8. MVP Polish | Done | Weekly summaries, data export, notifications stub |
 | 9. Personal state | Done | Goals, settings, and memories persisted in SQLite |
+| 10. Coaching delivery | Done | Background coaching loop, Windows toasts, persisted cooldown |
 
 ## Event Schema
 
@@ -80,10 +83,9 @@ All data is stored locally in SQLite — activity events, goals, settings, and m
 ## Next Steps
 
 - Connect OpenAI API for live AI coaching (replace `RuleBasedLlmClient`)
-- Test WindowMonitor and IdleMonitor on your Windows machine
+- Test WindowMonitor, IdleMonitor, and toast notifications on your Windows machine
 - Add system tray icon and auto-start registry entry
-- Wire Windows toast notifications
-- Close the coaching delivery loop (background evaluation + toast delivery)
+- Let users edit work hours and intervention cooldown in Settings
 
 ## License
 

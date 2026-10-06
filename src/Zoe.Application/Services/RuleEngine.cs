@@ -47,6 +47,20 @@ public sealed class RuleEngine : IRuleEngine
             evidence.Add("User in deep work — suppress non-critical interventions");
         }
 
+        if (context.EstimatedState == "Idle")
+        {
+            suppress = true;
+            triggeredRules.Add("UserIdle");
+            evidence.Add("User is idle — nobody to coach");
+        }
+
+        if (!IsWithinWorkHours(context.GeneratedAt, settings))
+        {
+            suppress = true;
+            triggeredRules.Add("OutsideWorkHours");
+            evidence.Add($"Outside work hours ({settings.WorkDayStart:HH:mm}-{settings.WorkDayEnd:HH:mm})");
+        }
+
         if (!settings.MonitoringEnabled)
         {
             suppress = true;
@@ -60,5 +74,12 @@ public sealed class RuleEngine : IRuleEngine
             TriggeredRules = triggeredRules,
             Evidence = evidence
         };
+    }
+
+    private static bool IsWithinWorkHours(DateTimeOffset at, UserSettings settings)
+    {
+        // Work hours are wall-clock times in the user's local time zone.
+        var localTime = TimeOnly.FromDateTime(at.ToLocalTime().DateTime);
+        return localTime.IsBetween(settings.WorkDayStart, settings.WorkDayEnd);
     }
 }

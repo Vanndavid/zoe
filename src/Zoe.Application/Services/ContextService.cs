@@ -42,7 +42,11 @@ public sealed class ContextService : IContextService
         var activeApp = latestWindow?.Payload.Get("application");
         var windowTitle = latestWindow?.Payload.Get("windowTitle");
 
-        var isIdle = recentEvents.LastOrDefault()?.Type == EventType.IdleStarted;
+        // Only activity events decide idleness; Zoe's own events (e.g. InterventionTriggered)
+        // must not make an idle user look active.
+        var isIdle = recentEvents
+            .LastOrDefault(e => e.Type is EventType.IdleStarted or EventType.IdleEnded or EventType.WindowChanged)
+            ?.Type == EventType.IdleStarted;
         var focusLevel = DetermineFocusLevel(activeApp, isIdle, recentEvents);
         var goalAlignment = CalculateGoalAlignment(activeApp, windowTitle, activeGoals);
         var risk = goalAlignment < 50 ? "High" : goalAlignment < 75 ? "Medium" : "Low";

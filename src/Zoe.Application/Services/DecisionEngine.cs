@@ -6,8 +6,9 @@ namespace Zoe.Application.Services;
 
 public sealed class DecisionEngine : IDecisionEngine
 {
+    private const int MaxInterventionsPerHour = 3;
+
     private readonly IEventStore _eventStore;
-    private DateTimeOffset? _lastInterventionAt;
 
     public DecisionEngine(IEventStore eventStore)
     {
@@ -25,19 +26,23 @@ public sealed class DecisionEngine : IDecisionEngine
             return null;
         }
 
-        if (_lastInterventionAt.HasValue &&
-            DateTimeOffset.UtcNow - _lastInterventionAt.Value <
-            TimeSpan.FromMinutes(settings.InterventionCooldownMinutes))
+        // Cooldown and hourly cap come from stored intervention events, so they hold
+        // across scopes and app restarts rather than living in this instance.
+        var now = DateTimeOffset.UtcNow;
+        var cooldown = TimeSpan.FromMinutes(settings.InterventionCooldownMinutes);
+        var lookback = cooldown > TimeSpan.FromHours(1) ? cooldown : TimeSpan.FromHours(1);
+
+        var recentInterventions = await _eventStore.GetByTypeAsync(
+            EventType.InterventionTriggered,
+            now - lookback,
+            cancellationToken: cancellationToken);
+
+        if (recentInterventions.Any(e => now - e.Timestamp < cooldown))
         {
             return null;
         }
 
-        var recentInterventions = await _eventStore.GetByTypeAsync(
-            EventType.InterventionTriggered,
-            DateTimeOffset.UtcNow.AddHours(-1),
-            cancellationToken: cancellationToken);
-
-        if (recentInterventions.Count >= 3)
+        if (recentInterventions.Count(e => e.Timestamp >= now.AddHours(-1)) >= MaxInterventionsPerHour)
         {
             return null;
         }
@@ -49,7 +54,6 @@ public sealed class DecisionEngine : IDecisionEngine
         }
 
         var message = BuildMessage(action, context);
-        _lastInterventionAt = DateTimeOffset.UtcNow;
 
         return new Intervention
         {

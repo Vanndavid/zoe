@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Windows.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Zoe.Application.Interfaces;
@@ -14,6 +15,7 @@ public partial class MainViewModel : ObservableObject
     private readonly ISettingsRepository _settingsRepository;
     private readonly TimelineViewModel _timelineViewModel;
     private readonly SettingsViewModel _settingsViewModel;
+    private readonly DispatcherTimer _timelineRefreshTimer;
 
     public MainViewModel(
         IMonitoringService monitoringService,
@@ -34,6 +36,10 @@ public partial class MainViewModel : ObservableObject
         Goals = new ObservableCollection<Goal>();
         MonitoringEnabled = true;
         AutoStart = true;
+
+        // Shows new activity as the monitors record it.
+        _timelineRefreshTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(3) };
+        _timelineRefreshTimer.Tick += async (_, _) => await _timelineViewModel.LoadTodayAsync();
 
         _ = LoadAsync();
     }
@@ -63,12 +69,14 @@ public partial class MainViewModel : ObservableObject
         if (_monitoringService.IsRunning)
         {
             await _monitoringService.StopAsync();
+            _timelineRefreshTimer.Stop();
             MonitoringButtonText = "Start Monitoring";
             StatusText = "Monitoring paused";
         }
         else
         {
             await _monitoringService.StartAsync();
+            _timelineRefreshTimer.Start();
             MonitoringButtonText = "Stop Monitoring";
             StatusText = "Monitoring active";
         }

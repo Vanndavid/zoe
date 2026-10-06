@@ -7,6 +7,8 @@ namespace Zoe.UI.ViewModels;
 public sealed class TimelineViewModel
 {
     private readonly ITimelineService _timelineService;
+    private readonly HashSet<Guid> _shownEventIds = [];
+    private DateTime _shownDay;
 
     public TimelineViewModel(ITimelineService timelineService)
     {
@@ -16,17 +18,32 @@ public sealed class TimelineViewModel
 
     public ObservableCollection<TimelineItemViewModel> Items { get; }
 
+    /// <summary>
+    /// Shows today's events (local day). Safe to call repeatedly: only events not yet
+    /// shown are appended, so a live refresh keeps the list's scroll position.
+    /// </summary>
     public async Task LoadTodayAsync()
     {
-        var today = DateTimeOffset.UtcNow.Date;
-        var from = new DateTimeOffset(today, TimeSpan.Zero);
-        var to = from.AddDays(1);
+        var today = DateTime.Today;
+        var from = new DateTimeOffset(today);
+        var to = new DateTimeOffset(today.AddDays(1));
 
         var events = await _timelineService.GetTimelineAsync(from, to);
 
-        Items.Clear();
+        if (today != _shownDay)
+        {
+            Items.Clear();
+            _shownEventIds.Clear();
+            _shownDay = today;
+        }
+
         foreach (var activityEvent in events)
         {
+            if (!_shownEventIds.Add(activityEvent.EventId))
+            {
+                continue;
+            }
+
             Items.Add(new TimelineItemViewModel
             {
                 Time = activityEvent.Timestamp.ToLocalTime().ToString("HH:mm:ss"),

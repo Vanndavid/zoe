@@ -82,10 +82,9 @@ All data is stored locally in SQLite — activity events, goals, settings, and m
 
 ## Next Steps
 
-- Connect OpenAI API for live AI coaching (replace `RuleBasedLlmClient`)
-- Test WindowMonitor, IdleMonitor, and toast notifications on your Windows machine
-- Add system tray icon and auto-start registry entry
-- Let users edit work hours and intervention cooldown in Settings
+See [ROADMAP.md](ROADMAP.md) for the long-range plan: seven stages that turn Zoe into a personal mentor, with Claude writing the coaching.
+
+Next up is Stage 1, "Live with it": a fixed home for the database and logs, EF Core migrations, a tray icon and auto-start, local-day stats, and CI on Windows.
 
 ## License
 
